@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Bhaptics WebRTC HapticStream</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #e9ecef;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            width: 100%;
+            background-color: #254f63;
+            color: white;
+            text-align: center;
+            padding: 10px 0;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            height: 100%;
+            max-width: 1400px;
+            padding: 20px;
+            box-sizing: border-box;
+            justify-content: space-between;
+        }
+
+        .remote-container {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+            padding-right: 10px;
+            box-sizing: border-box;
+        }
+
+        .local-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+            padding-left: 10px;
+            box-sizing: border-box;
+        }
+
+        .video-container,
+        .haptic-container {
+            width: 100%;
+            background-color: #ffffff;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .video-container .title,
+        .haptic-container .title,
+        .control-buttons .title {
+            font-weight: 600;
+            font-size: 1.2em;
+            color: #254f63;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        #localVideo {
+            width: 100%;
+            border-radius: 10px;
+            background-color: #000;
+        }
+
+        .remote-videos {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 300px;
+            max-width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: transparent;
+        }
+
+        .video-wrapper video {
+            width: 100%;
+            height: auto;
+        }
+
+        .nickname-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        #3d-container {
+            width: 100%;
+            height: 400px;
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            cursor: crosshair;
+        }
+
+        .intensity-container,
+        .user-list,
+        .control-buttons {
+            width: 100%;
+            background-color: #ffffff;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .intensity-container {
+            margin-top: 15px;
+        }
+
+        .intensity-container label {
+            display: block;
+            margin-bottom: 10px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .intensity-container input {
+            width: 80%;
+            cursor: pointer;
+        }
+
+        .user-list label {
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-top: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .checkbox-group label {
+            margin-bottom: 5px;
+            cursor: pointer;
+        }
+
+        .control-buttons button {
+            width: 100px;
+            margin: 0 10px;
+            padding: 10px 0;
+            border: none;
+            border-radius: 5px;
+            background-color: #254f63;
+            color: white;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .control-buttons button.off {
+            background-color: #dc3545;
+        }
+
+        .control-buttons button:hover {
+            background-color: #218838;
+        }
+
+        .control-buttons button.off:hover {
+            background-color: #c82333;
+        }
+
+        .view-buttons {
+            display: flex;
+            justify-content: center;
+            margin: 15px 0 10px 0;
+        }
+
+        .view-buttons button {
+            margin: 5px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            font-size: 0.9em;
+            cursor: pointer;
+        }
+
+        .view-buttons button:hover {
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                align-items: center;
+                padding: 10px;
+            }
+
+            .remote-container,
+            .local-container {
+                width: 100%;
+                padding: 0;
+            }
+
+            .video-wrapper {
+                width: 100%;
+            }
+
+            #3d-container {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        WebRTC-based Haptic Transmission System
+    </div>
+    <div class="container">
+        <div class="remote-container">
+            <div class="video-container">
+                <div class="title">Remote Videos</div>
+                <div class="remote-videos" id="remoteVideos"></div>
+            </div>
+        </div>
+        <div class="local-container">
+            <div class="video-container">
+                <div class="title">Local Video</div>
+                <video id="localVideo" autoplay muted></video>
+            </div>
+            <div class="haptic-container">
+                <div class="title">3D Avatar</div>
+                <div id="3d-container"></div>
+            </div>
+            <div class="view-buttons">
+                <button id="viewLeft">Left</button>
+                <button id="viewRight">Right</button>
+            </div>
+            <div class="intensity-container">
+                <label for="intensityRange">Received Intensity:</label>
+                <input type="range" id="intensityRange" min="0" max="100" value="100">
+            </div>
+            <div class="user-list">
+                <label>Send Haptic To:</label>
+                <div class="checkbox-group" id="userCheckboxes">
+                    <label><input type="checkbox" id="allUsers" checked> All</label>
+                </div>
+            </div>
+            <div class="control-buttons">
+                <button id="audioButton">Audio: On</button>
+                <button id="videoButton">Video: On</button>
+                <button id="hapticButton">Haptic: On</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="dist/bundle.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const socket = io('https://localhost:3030');
+            const intensityRange = document.getElementById('intensityRange');
+            const userCheckboxes = document.getElementById('userCheckboxes');
+            const allUsersCheckbox = document.getElementById('allUsers');
+            let hapticEnabled = true;
+            let drawing = false;
+            let currentView = 'Front';
+            let localStream;
+            const localVideo = document.getElementById('localVideo');
+            const remoteVideos = document.getElementById('remoteVideos');
+            const peerConnections = {};
+            const iceServers = {
+                iceServers: [
+                    { urls: "stun:stun.l.google.com:19302" },
+                    { urls: "stun:stun1.l.google.com:19302" },
+                    { urls: "stun:stun2.l.google.com:19302" },
+                ]
+            };
+
+            let camera, scene, renderer, avatar;
+            let gridObjects = []; 
+			let serverOffset = 0;
+			const latencyMeasurements = [];
+			let latencyCount = 0;
+			const LATENCY_SAMPLE_LIMIT = 1000;
+	
+
+
+
+		async function syncTimeWithServerImproved(repeat = 5) {
+        let bestOffset = 0;
+        let minRTT = Infinity;
+
+        for (let i = 0; i < repeat; i++) {
+            const clientSendTime = Date.now();
+            const pong = await new Promise((resolve) => {
+                socket.emit('timeSyncPing', { clientSendTime });
+                socket.once('timeSyncPong', resolve);
+            });
+
+            const clientReceiveTime = Date.now();
+            const rtt = clientReceiveTime - pong.clientSendTime;
+            const estimatedServerTime = pong.clientSendTime + rtt / 2;
+            const offset = pong.serverTime - estimatedServerTime;
+
+            if (rtt < minRTT) {
+                minRTT = rtt;
+                bestOffset = offset;
+            }
+        }
+
+        serverOffset = bestOffset;
+        console.log(`🕐 서버 offset (최소 RTT 기준): ${serverOffset}ms`);
+    }
+	
+            function init3DModel() {
+                const container = document.getElementById('3d-container');
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xf0f0f0);
+                const width = container.clientWidth;
+                const height = container.clientHeight > 0 ? container.clientHeight : 400;
+                camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+                camera.position.set(0, 1, 4);
+                renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setSize(width, height);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                container.appendChild(renderer.domElement);
+
+                const loader = new THREE.GLTFLoader();
+                loader.load('/scene.gltf', function (gltf) {
+                    avatar = gltf.scene;
+                    avatar.scale.set(0.9, 0.9, 0.9);
+                    avatar.position.set(0, -1.5, 0);
+                    scene.add(avatar);
+                    addGridVisualization();
+                    animate();
+                }, undefined, function (error) {
+                    console.error('GLTFLoader 로드 중 오류 발생:', error);
+                });
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                scene.add(ambientLight);
+
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(0, 5, 5);
+                scene.add(directionalLight);
+
+                window.addEventListener('resize', () => {
+                    const newWidth = container.clientWidth;
+                    const newHeight = container.clientHeight > 0 ? container.clientHeight : 400;
+                    camera.aspect = newWidth / newHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(newWidth, newHeight);
+                });
+
+                container.addEventListener('mousedown', onMouseDown, false);
+                container.addEventListener('mousemove', onMouseMove, false);
+                container.addEventListener('mouseup', onMouseUp, false);
+            }
+
+            function onMouseDown(event) {
+                event.preventDefault();
+                drawing = true;
+                handleHapticEvent(event);
+            }
+
+            function onMouseMove(event) {
+                if (!drawing) return;
+                handleHapticEvent(event);
+            }
+
+            function onMouseUp(event) {
+                drawing = false;
+            }
+
+ function handleHapticEvent(event) {
+    const container = document.getElementById('3d-container');
+    const rect = container.getBoundingClientRect();
+    const mouse = new THREE.Vector2();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersects = raycaster.intersectObjects(scene.children, true);
+    if (intersects.length > 0) {
+        const intersected = intersects[0].object;
+        if (intersected.userData.gridNumber) {
+            const selectedUsers = getSelectedUsers();
+            let title;
+
+            // 각 뷰에 따라 title 값을 설정
+            if (currentView === 'Front') {
+                // Front view에서 초록색 -> GloveR, 파란색 -> GloveL
+                if (intersected.material.color.getHex() === 0x00ff00) {
+                    title = 'GloveR';  // 초록색 오른손 GloveR
+                } else if (intersected.material.color.getHex() === 0x0000ff) {
+                    title = 'GloveL';  // 파란색 왼손 GloveL
+                } else {
+                    title = 'VestFront';  // 상반신 그리드
+                }
+            } else if (currentView === 'Back') {
+                // Back view에서 초록색 -> GloveL, 빨간색 -> GloveR
+                if (intersected.material.color.getHex() === 0xff0000) {
+                    title = 'GloveR';  // 빨간색 오른손 GloveR (뒤)
+                } else if (intersected.material.color.getHex() === 0x00ff00) {
+                    title = 'GloveL';  // 초록색 왼손 GloveL (뒤)
+                } else {
+                    title = 'VestBack';  // 상반신 그리드
+                }
+            } else if (currentView === 'Left') {
+                title = 'GloveR';  // 왼손 그리드
+            } else if (currentView === 'Right') {
+                title = 'GloveL';  // 오른손 그리드
+            }
+
+            const coords = { roomId: roomId, title: title, number: intersected.userData.gridNumber, mode: 'dot', users: selectedUsers };
+            console.log("Haptic event data:", coords);
+            sendHapticData(coords);
+        }
+    }
+}
+
+
+            function getSelectedUsers() {
+                const checkboxes = userCheckboxes.querySelectorAll('input[type="checkbox"]:not(#allUsers)');
+                const selectedUsers = Array.from(checkboxes).filter(checkbox => checkbox.checked).map(checkbox => checkbox.value);
+                return selectedUsers.length > 0 ? selectedUsers : ['all'];
+            }
+
+function sendHapticData(data) {
+    data.timestamp = Date.now() + serverOffset;  // 🔹 전송 시 서버 기준 시간 추가
+
+    Object.values(peerConnections).forEach(peerConnection => {
+        if (peerConnection.dataChannel && peerConnection.dataChannel.readyState === 'open') {
+            peerConnection.dataChannel.send(JSON.stringify(data));
+        }
+    });
+}
+
+
+function addGridVisualization() {
+    // 이전 그리드 제거
+    gridObjects.forEach(object => scene.remove(object));
+    gridObjects = [];
+
+    if (currentView === 'Left') {
+        // Left View 손 그리드 추가 (왼손 - GloveR)
+        const gridCoordinates = [
+            { x: 0, y: 0.88, z: 2 },  // 엄지 (1번)
+            { x: -0.05, y: 0.82, z: 2 },  // 검지 (2번)
+            { x: -0.1, y: 0.81, z: 2 },  // 중지 (3번)
+            { x: -0.155, y: 0.83, z: 2 },  // 약지 (4번)
+            { x: -0.2, y: 0.88, z: 2 },  // 새끼 (5번)
+            { x: -0.11, y: 1, z: 2 }   // 손목 가운데 (6번)
+        ];
+
+        gridCoordinates.forEach((coord, index) => {
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,  // 초록색으로 시각화 (왼손 - GloveR)
+                transparent: true,
+                opacity: 0  // 투명하게 설정
+            });
+
+            const geometry = new THREE.PlaneGeometry(0.05, 0.1);
+            const rectangle = new THREE.Mesh(geometry, material);
+
+            rectangle.position.set(coord.x, coord.y, coord.z);
+            rectangle.userData.gridNumber = index + 1;
+            gridObjects.push(rectangle);
+            scene.add(rectangle);
+        });
+    } else if (currentView === 'Right') {
+        // Right View 손 그리드 추가 (오른손 - GloveL)
+        const gridCoordinates = [
+            { x: -0.033, y: 0.88, z: 2 },  // 엄지 (1번)
+            { x: 0.03, y: 0.85, z: 2 },  // 검지 (2번)
+            { x: 0.09, y: 0.83, z: 2 },  // 중지 (3번)
+            { x: 0.155, y: 0.83, z: 2 },  // 약지 (4번)
+            { x: 0.2, y: 0.88, z: 2 },  // 새끼 (5번)
+            { x: 0.11, y: 1, z: 2 }   // 손목 가운데 (6번)
+        ];
+
+        gridCoordinates.forEach((coord, index) => {
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x0000ff,  // 파란색으로 시각화 (오른손 - GloveL)
+                transparent: true,
+                opacity: 0  // 투명하게 설정
+            });
+
+            const geometry = new THREE.PlaneGeometry(0.05, 0.1);
+            const rectangle = new THREE.Mesh(geometry, material);
+
+            rectangle.position.set(coord.x, coord.y, coord.z);
+            rectangle.userData.gridNumber = index + 1;
+            gridObjects.push(rectangle);
+            scene.add(rectangle);
+        });
+    } else if (currentView === 'Front') {
+        // Front View 상반신 및 손 그리드 추가
+        const upperBodyYMin = 0.7;
+        const upperBodyYMax = 1.8;
+        const gridHeight = (upperBodyYMax - upperBodyYMin) / 5;
+        const gridWidth = 0.15;
+        const gridZPosition = 0.35;
+
+        // 상반신 그리드 추가 (VestFront)
+        for (let y = 0; y < 5; y++) {
+            for (let x = 0; x < 4; x++) {
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0  // 투명하게 설정
+                });
+
+                const geometry = new THREE.PlaneGeometry(gridWidth, gridHeight);
+                const plane = new THREE.Mesh(geometry, material);
+
+                plane.position.set(0.225 - x * gridWidth, upperBodyYMax - y * gridHeight - gridHeight / 2, gridZPosition);
+                plane.userData.gridNumber = y * 4 + x + 1;
+                gridObjects.push(plane);
+                scene.add(plane);
+            }
+        }
+
+        // Front View 왼손 (GloveL) 그리드 추가
+        const leftHandCoordinates = [
+            { x: 1.32, y: 0.85, z: 0.35 },  // 엄지 (1번)
+            { x: 1.45, y: 0.82, z: 0.35 }   // 검지 (2번)
+        ];
+
+        leftHandCoordinates.forEach((coord, index) => {
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x0000ff,  // 파란색으로 시각화 (왼손 - GloveL)
+                transparent: true,
+                opacity: 0  // 투명하게 설정
+            });
+
+            const geometry = new THREE.PlaneGeometry(0.05, 0.1);
+            const rectangle = new THREE.Mesh(geometry, material);
+
+            rectangle.position.set(coord.x, coord.y, coord.z);
+            rectangle.userData.gridNumber = index + 1;
+            gridObjects.push(rectangle);
+            scene.add(rectangle);
+        });
+
+        // Front View 오른손 (GloveR) 그리드 추가
+        const rightHandCoordinates = [
+            { x: -1.28, y: 0.85, z: 0.35 },  // 엄지 (1번)
+            { x: -1.42, y: 0.82, z: 0.35 }   // 검지 (2번)
+        ];
+
+        rightHandCoordinates.forEach((coord, index) => {
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,  // 초록색으로 시각화 (오른손 - GloveR)
+                transparent: true,
+                opacity: 0  // 투명하게 설정
+            });
+
+            const geometry = new THREE.PlaneGeometry(0.05, 0.1);
+            const rectangle = new THREE.Mesh(geometry, material);
+
+            rectangle.position.set(coord.x, coord.y, coord.z);
+            rectangle.userData.gridNumber = index + 1;
+            gridObjects.push(rectangle);
+            scene.add(rectangle);
+        });
+
+    } else if (currentView === 'Back') {
+        // Back View 상반신 및 손 그리드 추가
+        const upperBodyYMin = 0.7;
+        const upperBodyYMax = 1.8;
+        const gridHeight = (upperBodyYMax - upperBodyYMin) / 5;
+        const gridWidth = 0.15;
+        const gridZPosition = 0.5;
+
+        // 상반신 그리드 추가 (VestBack)
+        for (let y = 0; y < 5; y++) {
+            for (let x = 0; x < 4; x++) {
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0  // 투명하게 설정
+                });
+
+                const geometry = new THREE.PlaneGeometry(gridWidth, gridHeight);
+                const plane = new THREE.Mesh(geometry, material);
+
+                plane.position.set(-0.225 + x * gridWidth, upperBodyYMax - y * gridHeight - gridHeight / 2, gridZPosition);
+                plane.userData.gridNumber = y * 4 + x + 1;
+                gridObjects.push(plane);
+                scene.add(plane);
+            }
+        }
+
+        // Back View 왼손 (GloveL) 그리드 추가
+        const leftHandCoordinates = [
+            { x: -1.28, y: 0.85, z: 0.35 },  // 엄지 (1번)
+            { x: -1.5, y: 0.82, z: 0.35 }    // 검지 (5번)
+        ];
+
+        leftHandCoordinates.forEach((coord, index) => {
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,  // 초록색으로 시각화 (왼손 - GloveL)
+                transparent: true,
+                opacity: 0  // 투명하게 설정
+            });
+
+            const geometry = new THREE.PlaneGeometry(0.05, 0.1);
+            const rectangle = new THREE.Mesh(geometry, material);
+
+            rectangle.userData.gridNumber = index === 1 ? 5 : index + 1;
+            rectangle.position.set(coord.x, coord.y, coord.z);
+            gridObjects.push(rectangle);
+            scene.add(rectangle);
+        });
+
+        // Back View 오른손 (GloveR) 그리드 추가
+        const rightHandCoordinates = [
+            { x: 1.29, y: 0.83, z: 0.35 },  // 엄지 (1번)
+            { x: 1.50, y: 0.82, z: 0.35 }   // 검지 (5번)
+        ];
+
+        rightHandCoordinates.forEach((coord, index) => {
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xff0000,  // 빨간색으로 시각화 (오른손 - GloveR)
+                transparent: true,
+                opacity: 0  // 투명하게 설정
+            });
+
+            const geometry = new THREE.PlaneGeometry(0.05, 0.1);
+            const rectangle = new THREE.Mesh(geometry, material);
+
+            rectangle.userData.gridNumber = index === 1 ? 5 : index + 1;
+            rectangle.position.set(coord.x, coord.y, coord.z);
+            gridObjects.push(rectangle);
+            scene.add(rectangle);
+        });
+    }
+}
+
+
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+            }
+
+            function addUserToList(nickname) {
+                const existingCheckbox = document.querySelector(`#userCheckboxes input[value="${nickname}"]`);
+                if (existingCheckbox) return;
+
+                const userLabel = document.createElement('label');
+                const userCheckbox = document.createElement('input');
+                userCheckbox.type = 'checkbox';
+                userCheckbox.value = nickname;
+                userCheckbox.checked = true;
+
+                userLabel.appendChild(userCheckbox);
+                userLabel.appendChild(document.createTextNode(` ${nickname}`));
+                userCheckboxes.appendChild(userLabel);
+
+                userCheckbox.addEventListener('change', handleUserCheckboxChange);
+            }
+
+            function handleUserCheckboxChange() {
+                if (!this.checked && !document.querySelector('#userCheckboxes input[type="checkbox"]:checked:not(#allUsers)')) {
+                    allUsersCheckbox.checked = true;
+                } else {
+                    allUsersCheckbox.checked = false;
+                }
+            }
+
+            async function startWebRTC() {
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    localVideo.srcObject = localStream;
+
+                    socket.emit('join_room', { roomId, nickname });
+
+                    socket.on('user_connected', async user => {
+                        if (!peerConnections[user.id]) { 
+                            addUserToList(user.nickname);
+
+                            const peerConnection = createPeerConnection(user.id, user.nickname);
+                            peerConnections[user.id] = peerConnection;
+
+                            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+                            const offer = await peerConnection.createOffer();
+                            await peerConnection.setLocalDescription(offer);
+                            socket.emit('offer', { userId: socket.id, targetUserId: user.id, sdp: offer });
+                        }
+                    });
+
+                    socket.on('offer', async data => {
+                        const peerConnection = createPeerConnection(data.userId, data.nickname);
+                        peerConnections[data.userId] = peerConnection;
+
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+
+                        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+                        const answer = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answer);
+                        socket.emit('answer', { userId: socket.id, targetUserId: data.userId, sdp: answer });
+                    });
+
+                    socket.on('answer', async data => {
+                        const peerConnection = peerConnections[data.userId];
+                        if (peerConnection) {
+                            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                        }
+                    });
+
+                    socket.on('ice-candidate', data => {
+                        const peerConnection = peerConnections[data.userId];
+                        if (peerConnection) {
+                            peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                        }
+                    });
+
+                    socket.on('update_user_list', users => {
+                        users.forEach(user => addUserToList(user.nickname));
+                    });
+
+                    socket.on('user_disconnected', id => {
+                        if (peerConnections[id]) {
+                            peerConnections[id].close();
+                            delete peerConnections[id];
+                        }
+                        const videoWrapper = document.getElementById(id);
+                        if (videoWrapper) videoWrapper.remove();
+                    });
+
+                } catch (error) {
+                    console.error('Error accessing media devices:', error);
+                }
+            }
+
+            function createPeerConnection(userId, nickname = '') {
+                const peerConnection = new RTCPeerConnection(iceServers);
+
+                const dataChannel = peerConnection.createDataChannel("hapticDataChannel");
+                peerConnection.dataChannel = dataChannel;
+
+                dataChannel.onopen = () => {
+                    console.log("Data channel is open for user: " + userId);
+                };
+
+                dataChannel.onmessage = (event) => {
+                    handleReceivedData(JSON.parse(event.data), userId);
+                };
+
+                peerConnection.ondatachannel = (event) => {
+                    const receiveChannel = event.channel;
+                    receiveChannel.onmessage = (event) => {
+                        handleReceivedData(JSON.parse(event.data), userId);
+                    };
+                };
+
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        socket.emit('ice-candidate', { userId: socket.id, targetUserId: userId, candidate: event.candidate });
+                    }
+                };
+
+                peerConnection.ontrack = event => {
+                    const stream = event.streams[0];
+                    let existingVideoWrapper = document.getElementById(userId);
+                    if (!existingVideoWrapper) {
+                        existingVideoWrapper = document.createElement('div');
+                        existingVideoWrapper.classList.add('video-wrapper');
+                        existingVideoWrapper.id = userId;
+
+                        const videoElement = document.createElement('video');
+                        videoElement.srcObject = stream;
+                        videoElement.autoplay = true;
+                        videoElement.playsinline = true;
+
+                        const nicknameOverlay = document.createElement('div');
+                        nicknameOverlay.classList.add('nickname-overlay');
+                        nicknameOverlay.textContent = nickname;
+
+                        existingVideoWrapper.appendChild(videoElement);
+                        existingVideoWrapper.appendChild(nicknameOverlay);
+                        remoteVideos.appendChild(existingVideoWrapper);
+                    } else {
+                        const videoElement = existingVideoWrapper.querySelector('video');
+                        if (videoElement) {
+                            videoElement.srcObject = stream;
+                        }
+                    }
+                };
+
+                return peerConnection;
+            }
+
+            function handleReceivedData(data, senderUserId) {
+                if (!hapticEnabled) return;
+
+                const position = data.title === 'Back' ? 'VestBack' : data.title === 'Front' ? 'VestFront' : data.title;
+                const receivedIntensity = data.intensity || parseInt(intensityRange.value);
+
+			    // 🔹 레이턴시 측정
+    if (data.timestamp && !isNaN(Number(data.timestamp))) {
+        const receiveTime = Date.now() + serverOffset;
+        const latency = receiveTime - Number(data.timestamp);
+        if (latencyCount < LATENCY_SAMPLE_LIMIT) {
+            latencyMeasurements.push(latency);
+            latencyCount++;
+        }
+
+        if (latencyCount === LATENCY_SAMPLE_LIMIT) {
+            const sum = latencyMeasurements.reduce((a, b) => a + b, 0);
+            const avg = sum / LATENCY_SAMPLE_LIMIT;
+            console.log(`📊 [평균 레이턴시] ${LATENCY_SAMPLE_LIMIT}회 평균: ${avg.toFixed(2)}ms`);
+        } else {
+            console.log(`📱 [Latency] From ${senderUserId}: ${latency}ms`);
+        }
+    }
+
+
+                if (data.users.includes('all') || data.users.includes(nickname)) {
+                    if (data.mode === 'dot') {
+                        console.log(`Received dot haptic data from ${senderUserId}:`, data);
+                        window.playHapticDot(position, data.number, receivedIntensity);
+                    } else if (data.mode === 'path') {
+                        console.log(`Received path haptic data from ${senderUserId}:`, data);
+                        data.crossedGrids.forEach(point => {
+                            window.playHapticDot(point.position, point.motorIndex, receivedIntensity);
+                        });
+                    }
+                }
+            }
+
+            const audioButton = document.getElementById('audioButton');
+            const videoButton = document.getElementById('videoButton');
+            const hapticButton = document.getElementById('hapticButton');
+
+            audioButton.addEventListener('click', () => {
+                const audioTracks = localStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    const isEnabled = audioTracks[0].enabled = !audioTracks[0].enabled;
+                    audioButton.textContent = `Audio: ${isEnabled ? 'On' : 'Off'}`;
+                    audioButton.classList.toggle('off', !isEnabled);
+                }
+            });
+
+            videoButton.addEventListener('click', () => {
+                const videoTracks = localStream.getVideoTracks();
+                if (videoTracks.length > 0) {
+                    const isEnabled = videoTracks[0].enabled = !videoTracks[0].enabled;
+                    videoButton.textContent = `Video: ${isEnabled ? 'On' : 'Off'}`;
+                    videoButton.classList.toggle('off', !isEnabled);
+                }
+            });
+
+            hapticButton.addEventListener('click', () => {
+                hapticEnabled = !hapticEnabled;
+                hapticButton.textContent = `Haptic: ${hapticEnabled ? 'On' : 'Off'}`;
+                hapticButton.classList.toggle('off', !hapticEnabled);
+            });
+
+            document.getElementById('viewLeft').addEventListener('click', () => {
+                if (currentView === 'Front') {
+                    currentView = 'Left';
+                    avatar.rotation.y = Math.PI / 2;
+                } else if (currentView === 'Left') {
+                    currentView = 'Back';
+                    avatar.rotation.y = Math.PI;
+                } else if (currentView === 'Back') {
+                    currentView = 'Right';
+                    avatar.rotation.y = -Math.PI / 2;
+                } else if (currentView === 'Right') {
+                    currentView = 'Front';
+                    avatar.rotation.y = 0;
+                }
+
+                addGridVisualization();
+            });
+
+            document.getElementById('viewRight').addEventListener('click', () => {
+                if (currentView === 'Front') {
+                    currentView = 'Right';
+                    avatar.rotation.y = -Math.PI / 2;
+                } else if (currentView === 'Right') {
+                    currentView = 'Back';
+                    avatar.rotation.y = Math.PI;
+                } else if (currentView === 'Back') {
+                    currentView = 'Left';
+                    avatar.rotation.y = Math.PI / 2;
+                } else if (currentView === 'Left') {
+                    currentView = 'Front';
+                    avatar.rotation.y = 0;
+                }
+
+                addGridVisualization();
+            });
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('roomId');
+            const nickname = urlParams.get('nickname');
+
+            if (!roomId || !nickname) {
+                alert('Room ID or Nickname is missing!');
+                throw new Error('Room ID or Nickname is missing!');
+            }
+
+            init3DModel();
+            startWebRTC();
+			syncTimeWithServerImproved();
+			setInterval(syncTimeWithServerImproved, 10000);  // 10초마다 재동기화
+        });
+    </script>
+</body>
+
+</html>
