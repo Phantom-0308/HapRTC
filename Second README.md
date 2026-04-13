@@ -33,7 +33,7 @@ npm install
 사용자 간 신호를 중계하는 통신 서버를 가동
 ```bash
 #서버 폴더로 이동
-cd 폴더명 server
+cd ~/폴더명/HapRTC-master/server
 
 #서버용 패키지 설치 (최초 1회)
 npm install
